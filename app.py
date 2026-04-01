@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from database import conectar, criar_tabela
 from datetime import datetime
+import io
 
 # CONFIG
 st.set_page_config(layout="wide")
@@ -12,13 +13,9 @@ cursor = conn.cursor()
 # 🎨 CSS PROFISSIONAL
 st.markdown("""
 <style>
-
-/* Fundo */
 .stApp {
     background: linear-gradient(135deg, #0E0E11, #1A1A2E);
 }
-
-/* Cards */
 .card {
     background: linear-gradient(145deg, #1A1A2E, #16213E);
     padding: 15px;
@@ -27,26 +24,19 @@ st.markdown("""
     transition: all 0.3s ease;
     box-shadow: 0px 0px 15px rgba(187,134,252,0.15);
 }
-
 .card:hover {
     transform: translateY(-5px) scale(1.02);
     box-shadow: 0px 0px 25px rgba(187,134,252,0.4);
 }
-
-/* Título */
 .titulo {
     font-size: 18px;
     font-weight: bold;
     color: #BB86FC;
 }
-
-/* Descrição */
 .desc {
     font-size: 13px;
     color: #CFCFCF;
 }
-
-/* Botões */
 .stButton > button {
     border-radius: 10px;
     background: linear-gradient(90deg, #BB86FC, #00C896);
@@ -54,32 +44,20 @@ st.markdown("""
     border: none;
     transition: 0.3s;
 }
-
 .stButton > button:hover {
     transform: scale(1.05);
     box-shadow: 0px 0px 10px #00C896;
 }
-
-/* Inputs */
 textarea, input {
     border-radius: 8px !important;
 }
-
-/* Histórico */
 .history-card {
     background: #121222;
     padding: 10px;
     border-left: 4px solid #00C896;
     border-radius: 8px;
     margin-bottom: 8px;
-    animation: fadeIn 0.3s ease-in;
 }
-
-@keyframes fadeIn {
-    from {opacity: 0; transform: translateY(10px);}
-    to {opacity: 1; transform: translateY(0);}
-}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -135,14 +113,11 @@ render_coluna("Concluído", col3)
 # ---------------------------
 if "task_id" in st.session_state:
     tarefa_id = st.session_state["task_id"]
-
     tarefa = pd.read_sql(f"SELECT * FROM tarefas WHERE id={tarefa_id}", conn).iloc[0]
 
     st.divider()
     st.subheader(f"📌 {tarefa['nome']}")
 
-    # ✏️ EDITAR
-    st.write("### ✏️ Editar pendência")
     novo_nome = st.text_input("Nome", tarefa["nome"])
     nova_desc = st.text_area("Descrição", tarefa["descricao"])
 
@@ -154,9 +129,6 @@ if "task_id" in st.session_state:
         conn.commit()
         st.success("Atualizado!")
         st.rerun()
-
-    # 🔄 STATUS
-    st.write("### 🔄 Alterar status")
 
     novo_status = st.selectbox(
         "Status",
@@ -173,8 +145,6 @@ if "task_id" in st.session_state:
         st.success("Status atualizado!")
         st.rerun()
 
-    # 📝 ATIVIDADE
-    st.write("### 📝 Registrar atividade")
     nova_acao = st.text_area("O que foi feito")
 
     if st.button("💾 Salvar atividade"):
@@ -185,9 +155,6 @@ if "task_id" in st.session_state:
         conn.commit()
         st.success("Atividade registrada!")
         st.rerun()
-
-    # 📜 HISTÓRICO
-    st.write("### 📜 Histórico")
 
     historico = pd.read_sql(
         f"SELECT * FROM historico WHERE tarefa_id={tarefa_id} ORDER BY data DESC",
@@ -202,9 +169,6 @@ if "task_id" in st.session_state:
         </div>
         """, unsafe_allow_html=True)
 
-    # 🗑️ EXCLUIR
-    st.write("### ⚠️ Ações críticas")
-
     if st.button("🗑️ Excluir pendência"):
         cursor.execute("DELETE FROM tarefas WHERE id=?", (tarefa_id,))
         cursor.execute("DELETE FROM historico WHERE tarefa_id=?", (tarefa_id,))
@@ -214,16 +178,53 @@ if "task_id" in st.session_state:
         st.rerun()
 
 # ---------------------------
-# EXPORTAR EXCEL
+# EXPORTAR EXCEL (DOWNLOAD REAL)
 # ---------------------------
 st.divider()
+st.subheader("📥 Exportar Excel")
 
-if st.button("📥 Exportar Excel"):
-    tarefas_df = pd.read_sql("SELECT * FROM tarefas", conn)
-    historico_df = pd.read_sql("SELECT * FROM historico", conn)
+tarefas_df = pd.read_sql("SELECT * FROM tarefas", conn)
+historico_df = pd.read_sql("SELECT * FROM historico", conn)
 
-    with pd.ExcelWriter("pendencias.xlsx") as writer:
-        tarefas_df.to_excel(writer, sheet_name="Tarefas", index=False)
-        historico_df.to_excel(writer, sheet_name="Historico", index=False)
+output = io.BytesIO()
 
-    st.success("Excel gerado!")
+with pd.ExcelWriter(output, engine="openpyxl") as writer:
+    tarefas_df.to_excel(writer, sheet_name="Tarefas", index=False)
+    historico_df.to_excel(writer, sheet_name="Historico", index=False)
+
+output.seek(0)
+
+st.download_button(
+    label="⬇️ Baixar Excel",
+    data=output,
+    file_name="pendencias.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+# ---------------------------
+# IMPORTAR EXCEL
+# ---------------------------
+st.divider()
+st.subheader("📤 Importar Excel")
+
+arquivo = st.file_uploader("Envie um arquivo Excel", type=["xlsx"])
+
+if arquivo:
+    df_import = pd.read_excel(arquivo)
+
+    st.dataframe(df_import)
+
+    if st.button("Importar pendências"):
+        for _, row in df_import.iterrows():
+            cursor.execute(
+                "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
+                (
+                    row.get("nome", ""),
+                    row.get("status", "Pendente"),
+                    row.get("descricao", "")
+                )
+            )
+
+        conn.commit()
+        st.success("Pendências importadas!")
+        st.rerun()
