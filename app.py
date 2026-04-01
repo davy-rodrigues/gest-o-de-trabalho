@@ -228,3 +228,69 @@ if arquivo:
         conn.commit()
         st.success("Pendências importadas!")
         st.rerun()
+        # ---------------------------
+# IMPORTAR EXCEL (CORRIGIDO)
+# ---------------------------
+st.divider()
+st.subheader("📤 Importar Excel")
+
+arquivo = st.file_uploader("Envie um arquivo Excel", type=["xlsx"])
+
+if arquivo:
+    df_import = pd.read_excel(arquivo)
+
+    # 🔍 DEBUG (ver colunas reais)
+    st.write("Colunas encontradas:", df_import.columns)
+
+    # 🔧 Normalizar colunas
+    df_import.columns = (
+        df_import.columns
+        .str.strip()
+        .str.lower()
+        .str.replace("ç", "c")
+        .str.replace("ã", "a")
+        .str.replace("á", "a")
+        .str.replace("é", "e")
+    )
+
+    # 🔄 Renomear possíveis variações
+    df_import = df_import.rename(columns={
+        "nome": "nome",
+        "descricao": "descricao",
+        "descrição": "descricao",
+        "status": "status"
+    })
+
+    st.write("Pré-visualização:")
+    st.dataframe(df_import)
+
+    if st.button("Importar pendências"):
+        erros = 0
+        inseridos = 0
+
+        for _, row in df_import.iterrows():
+            nome = str(row.get("nome", "")).strip()
+            descricao = str(row.get("descricao", "")).strip()
+            status = str(row.get("status", "Pendente")).strip()
+
+            # 🚫 Evitar registros vazios
+            if not nome:
+                erros += 1
+                continue
+
+            if status not in ["Pendente", "Em andamento", "Concluído"]:
+                status = "Pendente"
+
+            cursor.execute(
+                "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
+                (nome, status, descricao)
+            )
+            inseridos += 1
+
+        conn.commit()
+
+        st.success(f"✅ {inseridos} pendências importadas com sucesso!")
+        if erros > 0:
+            st.warning(f"⚠️ {erros} linhas ignoradas (sem nome)")
+
+        st.rerun()
