@@ -48,12 +48,64 @@ with st.form("nova_tarefa"):
     descricao = st.text_area("Descrição")
 
     if st.form_submit_button("➕ Adicionar"):
-        cursor.execute(
-            "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
-            (nome, "Pendente", descricao)
-        )
+        if nome.strip():
+            cursor.execute(
+                "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
+                (nome.strip(), "Pendente", descricao.strip())
+            )
+            conn.commit()
+            st.success("Pendência criada!")
+            st.rerun()
+        else:
+            st.warning("Nome não pode ser vazio")
+
+# =========================
+# IMPORTAR EXCEL (CORRIGIDO)
+# =========================
+st.divider()
+st.subheader("📤 Importar Excel")
+
+arquivo = st.file_uploader("Envie um arquivo Excel", type=["xlsx"])
+
+if arquivo:
+    df_import = pd.read_excel(arquivo)
+
+    # Normalizar colunas
+    df_import.columns = df_import.columns.str.strip().str.lower()
+
+    st.write("Colunas detectadas:", df_import.columns)
+    st.dataframe(df_import)
+
+    if st.button("Importar pendências"):
+        inseridos = 0
+
+        for _, row in df_import.iterrows():
+            nome = str(row.get("nome", "")).strip()
+            descricao = str(row.get("descricao", "")).strip()
+
+            # 🔥 NORMALIZAÇÃO DO STATUS
+            status_raw = str(row.get("status", "Pendente")).strip().lower()
+
+            if "pendente" in status_raw:
+                status = "Pendente"
+            elif "andamento" in status_raw:
+                status = "Em andamento"
+            elif "conclu" in status_raw:
+                status = "Concluído"
+            else:
+                status = "Pendente"
+
+            if not nome:
+                continue
+
+            cursor.execute(
+                "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
+                (nome, status, descricao)
+            )
+            inseridos += 1
+
         conn.commit()
-        st.success("Pendência criada!")
+        st.success(f"✅ {inseridos} pendências importadas!")
         st.rerun()
 
 # =========================
@@ -61,9 +113,13 @@ with st.form("nova_tarefa"):
 # =========================
 df = pd.read_sql("SELECT * FROM tarefas", conn)
 
+# DEBUG (se quiser ver os dados)
+# st.write(df)
+
 # =========================
 # KANBAN
 # =========================
+st.divider()
 col1, col2, col3 = st.columns(3)
 
 def render_coluna(status, coluna):
@@ -102,7 +158,7 @@ if "task_id" in st.session_state:
     if st.button("💾 Salvar edição"):
         cursor.execute(
             "UPDATE tarefas SET nome=?, descricao=? WHERE id=?",
-            (novo_nome, nova_desc, tarefa_id)
+            (novo_nome.strip(), nova_desc.strip(), tarefa_id)
         )
         conn.commit()
         st.success("Atualizado!")
@@ -127,13 +183,14 @@ if "task_id" in st.session_state:
     nova_acao = st.text_area("O que foi feito")
 
     if st.button("💾 Salvar atividade"):
-        cursor.execute(
-            "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
-            (tarefa_id, nova_acao, datetime.now().strftime("%Y-%m-%d %H:%M"))
-        )
-        conn.commit()
-        st.success("Atividade registrada!")
-        st.rerun()
+        if nova_acao.strip():
+            cursor.execute(
+                "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
+                (tarefa_id, nova_acao.strip(), datetime.now().strftime("%Y-%m-%d %H:%M"))
+            )
+            conn.commit()
+            st.success("Atividade registrada!")
+            st.rerun()
 
     historico = pd.read_sql(
         f"SELECT * FROM historico WHERE tarefa_id={tarefa_id} ORDER BY data DESC",
@@ -178,51 +235,3 @@ st.download_button(
     file_name="pendencias.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
-
-# =========================
-# IMPORTAR EXCEL (CORRIGIDO)
-# =========================
-st.divider()
-st.subheader("📤 Importar Excel")
-
-arquivo = st.file_uploader("Envie um arquivo Excel", type=["xlsx"])
-
-if arquivo:
-    df_import = pd.read_excel(arquivo)
-
-    # Normalizar colunas
-    df_import.columns = (
-        df_import.columns
-        .str.strip()
-        .str.lower()
-        .str.replace("ç", "c")
-        .str.replace("ã", "a")
-        .str.replace("á", "a")
-        .str.replace("é", "e")
-    )
-
-    st.dataframe(df_import)
-
-    if st.button("Importar pendências"):
-        inseridos = 0
-
-        for _, row in df_import.iterrows():
-            nome = str(row.get("nome", "")).strip()
-            descricao = str(row.get("descricao", "")).strip()
-            status = str(row.get("status", "Pendente")).strip()
-
-            if not nome:
-                continue
-
-            if status not in ["Pendente", "Em andamento", "Concluído"]:
-                status = "Pendente"
-
-            cursor.execute(
-                "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
-                (nome, status, descricao)
-            )
-            inseridos += 1
-
-        conn.commit()
-        st.success(f"{inseridos} pendências importadas!")
-        st.rerun()
