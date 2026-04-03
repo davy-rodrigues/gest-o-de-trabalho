@@ -1,5 +1,3 @@
-from asyncio import run
-
 import streamlit as st
 import pandas as pd
 from database import conectar, criar_tabela
@@ -40,7 +38,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🧠 Gestão Inteligente de Pendências")
+st.title("🥸 Gestão Inteligente de Pendências")
 
 # =========================
 # NOVA TAREFA
@@ -62,10 +60,10 @@ with st.form("nova_tarefa"):
             st.warning("Nome não pode ser vazio")
 
 # =========================
-# IMPORTAR EXCEL (CORRIGIDO + HISTÓRICO)
+# IMPORTAR EXCEL (CORRIGIDO)
 # =========================
 st.divider()
-st.subheader("📤 Importar Excel")
+st.subheader(" Importar Excel")
 
 arquivo = st.file_uploader("Envie um arquivo Excel", type=["xlsx"])
 
@@ -75,7 +73,6 @@ if arquivo:
     # Normalizar colunas
     df_import.columns = df_import.columns.str.strip().str.lower()
 
-    st.write("Colunas detectadas:", df_import.columns)
     st.dataframe(df_import)
 
     if st.button("Importar pendências"):
@@ -85,7 +82,9 @@ if arquivo:
             nome = str(row.get("nome", "")).strip()
             descricao = str(row.get("descricao", "")).strip()
 
-            status_raw = str(row.get("status", "Pendente")).strip().lower()
+            # NORMALIZAÇÃO FORTE DO STATUS
+            status_raw = str(row.get("status", "")).strip().lower()
+            status_raw = status_raw.replace(" ", "").replace("_", "")
 
             if "pendente" in status_raw:
                 status = "Pendente"
@@ -99,20 +98,20 @@ if arquivo:
             if not nome:
                 continue
 
-            # 🔥 INSERE TAREFA
+            # INSERE TAREFA
             cursor.execute(
                 "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
                 (nome, status, descricao)
             )
 
-            tarefa_id = cursor.lastrowid  # 👈 pega o ID gerado
+            tarefa_id = cursor.lastrowid
 
-            # 🔥 AGORA CRIA HISTÓRICO AUTOMÁTICO
+            # HISTÓRICO
             cursor.execute(
                 "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
                 (
                     tarefa_id,
-                    "Tarefa importada via Excel",
+                    f"Tarefa criada via importação (Status: {status})",
                     datetime.now().strftime("%Y-%m-%d %H:%M")
                 )
             )
@@ -120,18 +119,16 @@ if arquivo:
             inseridos += 1
 
         conn.commit()
-        st.success(f"✅ {inseridos} pendências importadas com histórico!")
+        st.success(f" {inseridos} pendências importadas!")
         st.rerun()
+
 # =========================
 # BUSCAR DADOS
 # =========================
 df = pd.read_sql("SELECT * FROM tarefas", conn)
 
-# DEBUG (se quiser ver os dados)
-# st.write(df)
-
 # =========================
-# KANBAN
+# KANBAN (CORRIGIDO)
 # =========================
 st.divider()
 col1, col2, col3 = st.columns(3)
@@ -139,7 +136,14 @@ col1, col2, col3 = st.columns(3)
 def render_coluna(status, coluna):
     with coluna:
         st.subheader(status)
-        tarefas = df[df["status"] == status]
+
+        tarefas = df[
+            df["status"]
+            .astype(str)
+            .str.strip()
+            .str.lower()
+            == status.lower()
+        ]
 
         for _, t in tarefas.iterrows():
             st.markdown(f"""
@@ -157,19 +161,19 @@ render_coluna("Em andamento", col2)
 render_coluna("Concluído", col3)
 
 # =========================
-# DETALHE DA TAREFA
+# DETALHE
 # =========================
 if "task_id" in st.session_state:
     tarefa_id = st.session_state["task_id"]
     tarefa = pd.read_sql(f"SELECT * FROM tarefas WHERE id={tarefa_id}", conn).iloc[0]
 
     st.divider()
-    st.subheader(f"📌 {tarefa['nome']}")
+    st.subheader(f" {tarefa['nome']}")
 
     novo_nome = st.text_input("Nome", tarefa["nome"])
     nova_desc = st.text_area("Descrição", tarefa["descricao"])
 
-    if st.button("💾 Salvar edição"):
+    if st.button(" Salvar edição"):
         cursor.execute(
             "UPDATE tarefas SET nome=?, descricao=? WHERE id=?",
             (novo_nome.strip(), nova_desc.strip(), tarefa_id)
@@ -193,48 +197,11 @@ if "task_id" in st.session_state:
         st.success("Status atualizado!")
         st.rerun()
 
-    # HISTÓRICO
-    nova_acao = st.text_area("O que foi feito")
-
-    if st.button("💾 Salvar atividade"):
-        if nova_acao.strip():
-            cursor.execute(
-                "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
-                (
-                    tarefa_id,
-                    nova_acao.strip(),
-                    datetime.now().strftime("%Y-%m-%d %H:%M")
-                )
-            )
-            conn.commit()
-            st.success("Atividade registrada!")
-            st.rerun()
-
-    historico = pd.read_sql(
-        f"SELECT * FROM historico WHERE tarefa_id={tarefa_id} ORDER BY data DESC",
-        conn
-    )
-
-    for _, h in historico.iterrows():
-        st.markdown(f"""
-        <div style="background:#121222;padding:10px;border-left:4px solid #00C896;margin-bottom:8px">
-            <b>{h['data']}</b><br>{h['acao']}
-        </div>
-        """, unsafe_allow_html=True)
-
-    if st.button("🗑️ Excluir pendência"):
-        cursor.execute("DELETE FROM tarefas WHERE id=?", (tarefa_id,))
-        cursor.execute("DELETE FROM historico WHERE tarefa_id=?", (tarefa_id,))
-        conn.commit()
-        del st.session_state["task_id"]
-        st.success("Excluído!")
-        st.rerun()
-
 # =========================
-# EXPORTAR EXCEL
+# EXPORTAR
 # =========================
 st.divider()
-st.subheader("📥 Exportar Excel")
+st.subheader(" Exportar Excel")
 
 tarefas_df = pd.read_sql("SELECT * FROM tarefas", conn)
 historico_df = pd.read_sql("SELECT * FROM historico", conn)
@@ -248,7 +215,7 @@ with pd.ExcelWriter(output, engine="openpyxl") as writer:
 output.seek(0)
 
 st.download_button(
-    label="⬇️ Baixar Excel",
+    label=" Baixar Excel",
     data=output,
     file_name="pendencias.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
