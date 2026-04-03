@@ -1,3 +1,5 @@
+from asyncio import run
+
 import streamlit as st
 import pandas as pd
 from database import conectar, criar_tabela
@@ -60,7 +62,7 @@ with st.form("nova_tarefa"):
             st.warning("Nome não pode ser vazio")
 
 # =========================
-# IMPORTAR EXCEL (CORRIGIDO)
+# IMPORTAR EXCEL (CORRIGIDO + HISTÓRICO)
 # =========================
 st.divider()
 st.subheader("📤 Importar Excel")
@@ -83,7 +85,6 @@ if arquivo:
             nome = str(row.get("nome", "")).strip()
             descricao = str(row.get("descricao", "")).strip()
 
-            # 🔥 NORMALIZAÇÃO DO STATUS
             status_raw = str(row.get("status", "Pendente")).strip().lower()
 
             if "pendente" in status_raw:
@@ -98,16 +99,29 @@ if arquivo:
             if not nome:
                 continue
 
+            # 🔥 INSERE TAREFA
             cursor.execute(
                 "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
                 (nome, status, descricao)
             )
+
+            tarefa_id = cursor.lastrowid  # 👈 pega o ID gerado
+
+            # 🔥 AGORA CRIA HISTÓRICO AUTOMÁTICO
+            cursor.execute(
+                "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
+                (
+                    tarefa_id,
+                    "Tarefa importada via Excel",
+                    datetime.now().strftime("%Y-%m-%d %H:%M")
+                )
+            )
+
             inseridos += 1
 
         conn.commit()
-        st.success(f"✅ {inseridos} pendências importadas!")
+        st.success(f"✅ {inseridos} pendências importadas com histórico!")
         st.rerun()
-
 # =========================
 # BUSCAR DADOS
 # =========================
@@ -186,7 +200,11 @@ if "task_id" in st.session_state:
         if nova_acao.strip():
             cursor.execute(
                 "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
-                (tarefa_id, nova_acao.strip(), datetime.now().strftime("%Y-%m-%d %H:%M"))
+                (
+                    tarefa_id,
+                    nova_acao.strip(),
+                    datetime.now().strftime("%Y-%m-%d %H:%M")
+                )
             )
             conn.commit()
             st.success("Atividade registrada!")
