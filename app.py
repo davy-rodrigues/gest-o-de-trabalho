@@ -63,37 +63,62 @@ with st.form("nova_tarefa"):
 # IMPORTAR EXCEL (CORRIGIDO)
 # =========================
 st.divider()
-st.subheader(" Importar Excel")
+st.subheader("📤 Importar Excel")
 
 arquivo = st.file_uploader("Envie um arquivo Excel", type=["xlsx"])
 
 if arquivo:
     df_import = pd.read_excel(arquivo)
 
-    # Normalizar colunas
-    df_import.columns = df_import.columns.str.strip().str.lower()
+    # 🔥 NORMALIZA COLUNAS
+    df_import.columns = (
+        df_import.columns
+        .str.strip()
+        .str.lower()
+        .str.replace("ç", "c")
+        .str.replace("ã", "a")
+        .str.replace("á", "a")
+        .str.replace("é", "e")
+        .str.replace("/", "")
+        .str.replace(" ", "")
+    )
 
+    st.write("Colunas encontradas:", df_import.columns)
     st.dataframe(df_import)
 
     if st.button("Importar pendências"):
         inseridos = 0
 
         for _, row in df_import.iterrows():
-            nome = str(row.get("nome", "")).strip()
-            descricao = str(row.get("descricao", "")).strip()
 
-            # NORMALIZAÇÃO FORTE DO STATUS
+            nome = str(row.get("categorias", "")).strip()
+            descricao = str(row.get("descricao", "")).strip()
             status_raw = str(row.get("status", "")).strip().lower()
+
+            # 🔥 NORMALIZA STATUS
             status_raw = status_raw.replace(" ", "").replace("_", "")
 
             if "pendente" in status_raw:
                 status = "Pendente"
             elif "andamento" in status_raw:
                 status = "Em andamento"
-            elif "conclu" in status_raw:
+            elif "conclu" in status_raw or "finalizado" in status_raw:
                 status = "Concluído"
             else:
                 status = "Pendente"
+
+            # INFO EXTRA
+            unidade = str(row.get("unidade", ""))
+            local = str(row.get("local", ""))
+            responsavel = str(row.get("responsavel", ""))
+
+            descricao_completa = f"""
+{descricao}
+
+📍 Unidade: {unidade}
+📌 Local: {local}
+👤 Responsável: {responsavel}
+"""
 
             if not nome:
                 continue
@@ -101,7 +126,7 @@ if arquivo:
             # INSERE TAREFA
             cursor.execute(
                 "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
-                (nome, status, descricao)
+                (nome, status, descricao_completa)
             )
 
             tarefa_id = cursor.lastrowid
@@ -111,7 +136,7 @@ if arquivo:
                 "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
                 (
                     tarefa_id,
-                    f"Tarefa criada via importação (Status: {status})",
+                    f"Importado via Excel (Status: {status})",
                     datetime.now().strftime("%Y-%m-%d %H:%M")
                 )
             )
@@ -119,9 +144,10 @@ if arquivo:
             inseridos += 1
 
         conn.commit()
-        st.success(f" {inseridos} pendências importadas!")
+        st.success(f"✅ {inseridos} pendências importadas corretamente!")
         st.rerun()
 
+            
 # =========================
 # BUSCAR DADOS
 # =========================
