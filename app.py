@@ -3,6 +3,7 @@ import pandas as pd
 from database import conectar, criar_tabela
 from datetime import datetime
 import io
+import hashlib
 
 # =========================
 # CONFIG
@@ -10,7 +11,46 @@ import io
 st.set_page_config(layout="wide")
 criar_tabela()
 conn = conectar()
+if conn is None:
+    st.stop()
 cursor = conn.cursor()
+
+# =========================
+# SESSION STATE
+# =========================
+if 'tarefas_minimizadas' not in st.session_state:
+    st.session_state.tarefas_minimizadas = set()
+if 'modo_visualizacao' not in st.session_state:
+    st.session_state.modo_visualizacao = "expandido"  # expandido ou minimizado
+
+# =========================
+# FUNÇÕES AUXILIARES
+# =========================
+def gerar_id_unico(nome, descricao):
+    """Gera um ID único baseado no nome e descrição"""
+    conteudo = f"{nome}_{descricao}".encode('utf-8')
+    return hashlib.md5(conteudo).hexdigest()[:12]
+
+def toggle_minimizar(tarefa_id):
+    """Alterna o estado minimizado de uma tarefa"""
+    if tarefa_id in st.session_state.tarefas_minimizadas:
+        st.session_state.tarefas_minimizadas.remove(tarefa_id)
+    else:
+        st.session_state.tarefas_minimizadas.add(tarefa_id)
+    st.rerun()
+
+def toggle_todas_minimizar():
+    """Minimiza ou expande todas as tarefas"""
+    if st.session_state.modo_visualizacao == "expandido":
+        st.session_state.modo_visualizacao = "minimizado"
+        # Minimiza todas as tarefas atuais
+        df_atual = pd.read_sql("SELECT id FROM tarefas", conn)
+        for id_tarefa in df_atual['id'].values:
+            st.session_state.tarefas_minimizadas.add(id_tarefa)
+    else:
+        st.session_state.modo_visualizacao = "expandido"
+        st.session_state.tarefas_minimizadas.clear()
+    st.rerun()
 
 # =========================
 # ESTILO
@@ -25,6 +65,14 @@ st.markdown("""
     padding: 15px;
     border-radius: 14px;
     margin-bottom: 12px;
+    transition: all 0.3s ease;
+}
+.card-minimizado {
+    background: linear-gradient(145deg, #1A1A2E, #16213E);
+    padding: 10px 15px;
+    border-radius: 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
 }
 .titulo {
     font-size: 18px;
@@ -43,13 +91,27 @@ st.markdown("""
     font-weight: bold;
     margin-top: 5px;
 }
-.status-pendente { background: #FF6B6B; color: white; }
-.status-andamento { background: #FFD93D; color: #333; }
-.status-concluido { background: #6BCB77; color: white; }
+.btn-minimizar {
+    background: none;
+    border: none;
+    color: #BB86FC;
+    cursor: pointer;
+    font-size: 16px;
+}
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🥸 Gestão Inteligente de Pendências")
+
+# Botão para minimizar/expandir todas
+col_botoes_top, col_vazio = st.columns([1, 3])
+with col_botoes_top:
+    if st.session_state.modo_visualizacao == "expandido":
+        if st.button("📋 Minimizar Todas as Tarefas", use_container_width=True):
+            toggle_todas_minimizar()
+    else:
+        if st.button("🔍 Expandir Todas as Tarefas", use_container_width=True):
+            toggle_todas_minimizar()
 
 # =========================
 # NOVA TAREFA
@@ -60,18 +122,25 @@ with st.form("nova_tarefa"):
 
     if st.form_submit_button("➕ Adicionar"):
         if nome.strip():
-            cursor.execute(
-                "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
-                (nome.strip(), "Pendente", descricao.strip())
-            )
-            conn.commit()
-            st.success("Pendência criada!")
-            st.rerun()
+            tarefa_id = gerar_id_unico(nome.strip(), descricao.strip())
+            
+            # Verifica se o ID já existe
+            cursor.execute("SELECT id FROM tarefas WHERE id = %s", (tarefa_id,))
+            if cursor.fetchone():
+                st.warning("Esta tarefa já existe no sistema!")
+            else:
+                cursor.execute(
+                    "INSERT INTO tarefas (id, nome, status, descricao) VALUES (%s, %s, %s, %s)",
+                    (tarefa_id, nome.strip(), "Pendente", descricao.strip())
+                )
+                conn.commit()
+                st.success("Pendência criada!")
+                st.rerun()
         else:
             st.warning("Nome não pode ser vazio")
 
 # =========================
-# IMPORTAR EXCEL INTELIGENTE
+# IMPORTAR EXCEL INTELIGENTE COM CONTROLE DE ID
 # =========================
 st.divider()
 st.subheader("📤 Importar Excel")
@@ -83,6 +152,11 @@ if arquivo:
     
     # Mostra as colunas originais para debug
     st.write("**Colunas encontradas no arquivo:**", list(df_import.columns))
+    
+    # Verifica se existe coluna de ID
+    tem_coluna_id = 'id' in [col.lower() for col in df_import.columns]
+    if tem_coluna_id:
+        st.info("✅ Detectada coluna 'ID' - Usando IDs existentes da planilha")
     
     # NORMALIZA COLUNAS
     df_import.columns = (
@@ -107,8 +181,17 @@ if arquivo:
         inseridos_andamento = 0
         inseridos_concluido = 0
         ignorados_excluidos = 0
+        ignorados_duplicados = 0
+        atualizados = 0
 
         for _, row in df_import.iterrows():
+            # Tenta identificar ID
+            tarefa_id = None
+            if tem_coluna_id and 'id' in df_import.columns:
+                tarefa_id = str(row.get('id', "")).strip()
+                if tarefa_id == "nan" or not tarefa_id:
+                    tarefa_id = None
+            
             # Tenta identificar as colunas comuns
             nome = ""
             descricao = ""
@@ -132,85 +215,105 @@ if arquivo:
                     status_raw = str(row.get(col, "")).strip().lower()
                     break
             
-            # Se não encontrou coluna específica, tenta usar os valores diretamente
-            if not nome:
-                # Pega o primeiro valor não vazio da linha
+            # Se não encontrou nome, tenta usar valores diretamente
+            if not nome or nome == "nan":
                 for col in df_import.columns:
                     valor = str(row.get(col, "")).strip()
-                    if valor and valor != "nan":
+                    if valor and valor != "nan" and col not in ['id', 'status']:
                         nome = valor
                         break
             
-            # 🔥 INTELIGÊNCIA DE STATUS (identifica pendente, andamento, concluído, excluído)
-            status = "Pendente"  # Status padrão
+            # Gera ID se não existe
+            if not tarefa_id and nome and nome != "nan":
+                tarefa_id = gerar_id_unico(nome, descricao)
             
+            # Verifica se o ID já existe no banco
+            if tarefa_id:
+                cursor.execute("SELECT id, nome, status FROM tarefas WHERE id = %s", (tarefa_id,))
+                existe = cursor.fetchone()
+                
+                if existe:
+                    # ID existe - verifica se precisa atualizar
+                    status_atual = existe[2]
+                    
+                    # Processa novo status
+                    novo_status = status_atual
+                    if status_raw:
+                        status_raw = status_raw.replace(" ", "").replace("_", "").replace("-", "")
+                        
+                        if "pendente" in status_raw:
+                            novo_status = "Pendente"
+                        elif "andamento" in status_raw:
+                            novo_status = "Em andamento"
+                        elif "conclu" in status_raw:
+                            novo_status = "Concluído"
+                        elif "exclu" in status_raw:
+                            ignorados_excluidos += 1
+                            continue
+                    
+                    # Atualiza se necessário
+                    if novo_status != status_atual:
+                        cursor.execute(
+                            "UPDATE tarefas SET status = %s, descricao = %s WHERE id = %s",
+                            (novo_status, descricao, tarefa_id)
+                        )
+                        cursor.execute(
+                            "INSERT INTO historico (tarefa_id, acao) VALUES (%s, %s)",
+                            (tarefa_id, f"Status atualizado via Excel: {status_atual} → {novo_status}")
+                        )
+                        atualizados += 1
+                    
+                    ignorados_duplicados += 1
+                    continue  # Não insere duplicado
+            
+            # Processa nova tarefa
+            if not nome or nome == "nan":
+                continue
+            
+            # Processa status
+            status = "Pendente"
             if status_raw:
                 status_raw = status_raw.replace(" ", "").replace("_", "").replace("-", "")
                 
-                if "pendente" in status_raw or "aberto" in status_raw or "ativo" in status_raw:
+                if "pendente" in status_raw or "aberto" in status_raw:
                     status = "Pendente"
                     inseridos_pendente += 1
-                elif "andamento" in status_raw or "progresso" in status_raw or "fazendo" in status_raw:
+                elif "andamento" in status_raw or "progresso" in status_raw:
                     status = "Em andamento"
                     inseridos_andamento += 1
-                elif "conclu" in status_raw or "finalizado" in status_raw or "feito" in status_raw or "completo" in status_raw:
+                elif "conclu" in status_raw or "finalizado" in status_raw:
                     status = "Concluído"
                     inseridos_concluido += 1
-                elif "exclu" in status_raw or "deletado" in status_raw or "removido" in status_raw:
-                    ignorados_excluidos += 1
-                    continue  # 👈 IGNORA tarefas excluídas
-                else:
-                    status = "Pendente"
-                    inseridos_pendente += 1
-            else:
-                # Se não tem coluna de status, tenta identificar pelo contexto
-                if any(palavra in nome.lower() for palavra in ['pendente', 'aberto', 'ativo']):
-                    status = "Pendente"
-                    inseridos_pendente += 1
-                elif any(palavra in nome.lower() for palavra in ['andamento', 'progresso']):
-                    status = "Em andamento"
-                    inseridos_andamento += 1
-                elif any(palavra in nome.lower() for palavra in ['conclu', 'finalizado', 'feito']):
-                    status = "Concluído"
-                    inseridos_concluido += 1
-                elif any(palavra in nome.lower() for palavra in ['exclu', 'deletado']):
+                elif "exclu" in status_raw:
                     ignorados_excluidos += 1
                     continue
                 else:
                     status = "Pendente"
                     inseridos_pendente += 1
-
-            if not nome or nome == "nan":
-                continue
-
-            # Prepara descrição completa com metadados
+            else:
+                inseridos_pendente += 1
+            
+            # Prepara descrição completa
             descricao_completa = descricao if descricao and descricao != "nan" else "Sem descrição detalhada"
             
-            # Adiciona informações extras se existirem
             info_extra = []
             for col in df_import.columns:
                 valor = row.get(col, "")
-                if valor and str(valor) != "nan" and col not in ['nome', 'descricao', 'status', 'titulo', 'categoria', 'atividade']:
+                if valor and str(valor) != "nan" and col not in ['id', 'nome', 'descricao', 'status', 'titulo', 'categoria', 'atividade']:
                     info_extra.append(f"📌 {col}: {valor}")
             
             if info_extra:
                 descricao_completa += "\n\n" + "\n".join(info_extra)
-
-            # Insere no banco de dados
+            
+            # Insere nova tarefa
             cursor.execute(
-                "INSERT INTO tarefas (nome, status, descricao) VALUES (?, ?, ?)",
-                (nome, status, descricao_completa)
+                "INSERT INTO tarefas (id, nome, status, descricao) VALUES (%s, %s, %s, %s)",
+                (tarefa_id, nome, status, descricao_completa)
             )
-
-            tarefa_id = cursor.lastrowid
-
+            
             cursor.execute(
-                "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
-                (
-                    tarefa_id,
-                    f"Importado via Excel (Status: {status})",
-                    datetime.now().strftime("%Y-%m-%d %H:%M")
-                )
+                "INSERT INTO historico (tarefa_id, acao) VALUES (%s, %s)",
+                (tarefa_id, f"Importado via Excel (Status: {status})")
             )
 
         conn.commit()
@@ -218,17 +321,19 @@ if arquivo:
         # Mostra resumo da importação
         st.success(f"""
         ✅ Importação concluída!
-        - 📌 Pendentes: {inseridos_pendente}
-        - ⚙️ Em andamento: {inseridos_andamento}
-        - ✅ Concluídos: {inseridos_concluido}
-        - 🗑️ Excluídos ignorados: {ignorados_excluidos}
+        - 📌 Novas Pendentes: {inseridos_pendente}
+        - ⚙️ Novas Em andamento: {inseridos_andamento}
+        - ✅ Novas Concluídas: {inseridos_concluido}
+        - 🔄 Atualizadas: {atualizados}
+        - ⏭️ Duplicadas ignoradas: {ignorados_duplicados}
+        - 🗑️ Excluídas ignoradas: {ignorados_excluidos}
         """)
         st.rerun()
 
 # =========================
 # BUSCAR DADOS
 # =========================
-df = pd.read_sql("SELECT * FROM tarefas ORDER BY id DESC", conn)
+df = pd.read_sql("SELECT * FROM tarefas ORDER BY data_criacao DESC", conn)
 
 # Mostra estatísticas
 col1, col2, col3, col4 = st.columns(4)
@@ -259,46 +364,78 @@ def render_coluna(status, coluna, cor):
             st.info(f"Nenhuma tarefa {status.lower()}")
         
         for _, t in tarefas.iterrows():
-            # Mostra o cartão da tarefa
-            st.markdown(f"""
-            <div class="card">
-                <div class="titulo">📋 {t['nome']}</div>
-                <div class="desc">{t['descricao'][:100]}...</div>
-            </div>
-            """, unsafe_allow_html=True)
+            tarefa_id = t['id']
+            esta_minimizada = tarefa_id in st.session_state.tarefas_minimizadas
             
-            # Botões de ação
-            col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 1])
+            # Verifica se deve mostrar minimizada
+            if st.session_state.modo_visualizacao == "minimizado" and not esta_minimizada:
+                esta_minimizada = True
+                st.session_state.tarefas_minimizadas.add(tarefa_id)
             
-            with col_btn1:
-                if st.button("✏️ Editar", key=f"edit_{status}_{t['id']}"):
-                    st.session_state["task_id"] = t["id"]
-            
-            with col_btn2:
-                if status != "Concluído":
-                    if st.button("✅ Concluir", key=f"complete_{t['id']}"):
-                        cursor.execute("UPDATE tarefas SET status='Concluído' WHERE id=?", (t['id'],))
+            if esta_minimizada:
+                # Visualização minimizada
+                with st.container():
+                    col_min1, col_min2, col_min3 = st.columns([4, 1, 1])
+                    with col_min1:
+                        if st.button(f"📋 {t['nome'][:50]}", key=f"min_{tarefa_id}", use_container_width=True):
+                            toggle_minimizar(tarefa_id)
+                    with col_min2:
+                        if st.button("✏️", key=f"edit_min_{tarefa_id}"):
+                            st.session_state["task_id"] = tarefa_id
+                    with col_min3:
+                        if st.button("🗑️", key=f"del_min_{tarefa_id}"):
+                            cursor.execute(
+                                "INSERT INTO historico (tarefa_id, acao) VALUES (%s, %s)",
+                                (tarefa_id, f"Tarefa excluída permanentemente - Status anterior: {t['status']}")
+                            )
+                            cursor.execute("DELETE FROM tarefas WHERE id = %s", (tarefa_id,))
+                            conn.commit()
+                            st.success("Tarefa excluída!")
+                            st.rerun()
+            else:
+                # Visualização expandida
+                st.markdown(f"""
+                <div class="card">
+                    <div class="titulo">
+                        📋 {t['nome']}
+                        <button class="btn-minimizar" onclick="toggle_{tarefa_id}">🔼</button>
+                    </div>
+                    <div class="desc">{t['descricao'][:100]}...</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                col_btn1, col_btn2, col_btn3, col_btn4 = st.columns([1, 1, 1, 1])
+                
+                with col_btn1:
+                    if st.button("✏️ Editar", key=f"edit_{status}_{tarefa_id}"):
+                        st.session_state["task_id"] = tarefa_id
+                
+                with col_btn2:
+                    if status != "Concluído":
+                        if st.button("✅ Concluir", key=f"complete_{tarefa_id}"):
+                            cursor.execute("UPDATE tarefas SET status='Concluído' WHERE id = %s", (tarefa_id,))
+                            cursor.execute(
+                                "INSERT INTO historico (tarefa_id, acao) VALUES (%s, %s)",
+                                (tarefa_id, "Tarefa concluída")
+                            )
+                            conn.commit()
+                            st.success("Tarefa concluída!")
+                            st.rerun()
+                
+                with col_btn3:
+                    if st.button("📌 Minimizar", key=f"minimize_{tarefa_id}"):
+                        toggle_minimizar(tarefa_id)
+                
+                with col_btn4:
+                    if st.button("🗑️ Excluir", key=f"delete_{tarefa_id}"):
                         cursor.execute(
-                            "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
-                            (t['id'], "Tarefa concluída", datetime.now().strftime("%Y-%m-%d %H:%M"))
+                            "INSERT INTO historico (tarefa_id, acao) VALUES (%s, %s)",
+                            (tarefa_id, f"Tarefa excluída permanentemente - Status anterior: {t['status']}")
                         )
+                        cursor.execute("DELETE FROM tarefas WHERE id = %s", (tarefa_id,))
                         conn.commit()
-                        st.success("Tarefa concluída!")
+                        st.success("Tarefa excluída!")
                         st.rerun()
-            
-            with col_btn3:
-                # Botão de excluir permanente
-                if st.button("🗑️ Excluir", key=f"delete_{t['id']}"):
-                    # Move para histórico antes de excluir
-                    cursor.execute(
-                        "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
-                        (t['id'], f"Tarefa excluída permanentemente - Status anterior: {t['status']}", 
-                         datetime.now().strftime("%Y-%m-%d %H:%M"))
-                    )
-                    cursor.execute("DELETE FROM tarefas WHERE id=?", (t['id'],))
-                    conn.commit()
-                    st.success("Tarefa excluída permanentemente!")
-                    st.rerun()
             
             st.markdown("---")
 
@@ -308,7 +445,7 @@ render_coluna("Em andamento", col2, "🟡")
 render_coluna("Concluído", col3, "🟢")
 
 # =========================
-# GERENCIAR TAREFAS EXCLUÍDAS (Histórico)
+# GERENCIAR HISTÓRICO
 # =========================
 st.divider()
 with st.expander("🗑️ Gerenciar Tarefas Excluídas (Histórico)"):
@@ -330,10 +467,16 @@ with st.expander("🗑️ Gerenciar Tarefas Excluídas (Histórico)"):
 # =========================
 if "task_id" in st.session_state:
     tarefa_id = st.session_state["task_id"]
-    tarefa = pd.read_sql(f"SELECT * FROM tarefas WHERE id={tarefa_id}", conn)
+    cursor.execute("SELECT * FROM tarefas WHERE id = %s", (tarefa_id,))
+    tarefa_data = cursor.fetchone()
     
-    if len(tarefa) > 0:
-        tarefa = tarefa.iloc[0]
+    if tarefa_data:
+        tarefa = {
+            'id': tarefa_data[0],
+            'nome': tarefa_data[1],
+            'status': tarefa_data[2],
+            'descricao': tarefa_data[3]
+        }
 
         st.divider()
         st.subheader(f"✏️ Editando: {tarefa['nome']}")
@@ -346,12 +489,12 @@ if "task_id" in st.session_state:
         with col_edit1:
             if st.button("💾 Salvar edição"):
                 cursor.execute(
-                    "UPDATE tarefas SET nome=?, descricao=? WHERE id=?",
+                    "UPDATE tarefas SET nome = %s, descricao = %s WHERE id = %s",
                     (novo_nome.strip(), nova_desc.strip(), tarefa_id)
                 )
                 cursor.execute(
-                    "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
-                    (tarefa_id, "Tarefa editada", datetime.now().strftime("%Y-%m-%d %H:%M"))
+                    "INSERT INTO historico (tarefa_id, acao) VALUES (%s, %s)",
+                    (tarefa_id, "Tarefa editada")
                 )
                 conn.commit()
                 st.success("Atualizado!")
@@ -370,12 +513,12 @@ if "task_id" in st.session_state:
 
         if st.button("🔄 Atualizar status"):
             cursor.execute(
-                "UPDATE tarefas SET status=? WHERE id=?",
+                "UPDATE tarefas SET status = %s WHERE id = %s",
                 (novo_status, tarefa_id)
             )
             cursor.execute(
-                "INSERT INTO historico (tarefa_id, acao, data) VALUES (?, ?, ?)",
-                (tarefa_id, f"Status alterado para: {novo_status}", datetime.now().strftime("%Y-%m-%d %H:%M"))
+                "INSERT INTO historico (tarefa_id, acao) VALUES (%s, %s)",
+                (tarefa_id, f"Status alterado para: {novo_status}")
             )
             conn.commit()
             st.success("Status atualizado!")
@@ -395,7 +538,7 @@ col_export1, col_export2 = st.columns(2)
 
 with col_export1:
     if st.button("📊 Exportar Tarefas Ativas"):
-        tarefas_df = pd.read_sql("SELECT * FROM tarefas ORDER BY status, id", conn)
+        tarefas_df = pd.read_sql("SELECT * FROM tarefas ORDER BY status, data_criacao", conn)
         
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -427,5 +570,6 @@ with col_export2:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-# Fecha conexão
-# Nota: Não fechamos aqui porque o Streamlit mantém a conexão aberta
+# Fecha conexão ao final
+# cursor.close()
+# conn.close()
