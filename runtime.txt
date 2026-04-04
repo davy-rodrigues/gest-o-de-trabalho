@@ -1,0 +1,2 @@
+cd C:\Gestão\gestao_tarefas
+echo python-3.12 > runtime.txt
