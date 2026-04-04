@@ -1,2 +1,5 @@
-cd C:\Gestão\gestao_tarefas
-echo python-3.12 > runtime.txt
+
+## 📁 **runtime.txt (obrigatório para Python 3.12):**
+
+```txt
+python-3.12
