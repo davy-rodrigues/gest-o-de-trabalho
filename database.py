@@ -1,19 +1,37 @@
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 import streamlit as st
+import os
+from dotenv import load_dotenv
+
+# Carregar variáveis do .env
+load_dotenv()
 
 # Configurações do banco
 DB_USER = "root"
-DB_PASSWORD = "C#OrientadaObjeto"
-DB_HOST = "127.0.0.1"  # Coloque o IP da outra máquina
+DB_HOST = "127.0.0.1"
 DB_NAME = "gestao_pendencias"
 DB_PORT = 3306
+
+def get_password():
+    """Retorna a senha do banco"""
+    password = os.getenv('DB_PASSWORD')
+    if password:
+        return password
+    else:
+        st.error("❌ Senha do banco não encontrada no .env")
+        return None
 
 def criar_banco_se_nao_existe():
     """Cria o banco de dados se ele não existir"""
     try:
-        # Conecta sem especificar o banco
-        engine_sem_db = create_engine(f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}")
+        password = get_password()
+        if not password:
+            return False
+            
+        # Conecta sem especificar o banco - sem auth_plugin
+        conn_str = f"mysql+pymysql://{DB_USER}:{password}@{DB_HOST}:{DB_PORT}"
+        engine_sem_db = create_engine(conn_str)
         
         with engine_sem_db.connect() as conn:
             # Verifica se o banco existe
@@ -41,14 +59,23 @@ def get_engine():
         if not criar_banco_se_nao_existe():
             return None
             
-        # Conecta ao banco específico
-        conexao_str = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
-        engine = create_engine(conexao_str, pool_pre_ping=True, pool_recycle=3600)
+        password = get_password()
+        if not password:
+            return None
+            
+        # Conecta ao banco específico - sem auth_plugin
+        conexao_str = f"mysql+pymysql://{DB_USER}:{password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+        engine = create_engine(
+            conexao_str, 
+            pool_pre_ping=True, 
+            pool_recycle=3600
+        )
         
         # Testa conexão
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         
+        st.sidebar.success("✅ Conectado ao MySQL com sucesso!")
         return engine
         
     except Exception as e:
@@ -59,7 +86,6 @@ def criar_tabela():
     """Cria as tabelas necessárias se não existirem"""
     engine = get_engine()
     if engine is None:
-        st.error("❌ Não foi possível conectar ao banco")
         return False
     
     try:
@@ -95,4 +121,3 @@ def criar_tabela():
         return False
     finally:
         engine.dispose()
-        

@@ -74,16 +74,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🥸 Gestão Inteligente de Pendências")
+st.title(" Gestão Inteligente de Pendências")
 
 # Botão minimizar/expandir todas
 col_botoes_top, _ = st.columns([1, 3])
 with col_botoes_top:
     if st.session_state.modo_visualizacao == "expandido":
-        if st.button("📋 Minimizar Todas", use_container_width=True):
+        if st.button(" Minimizar Todas", use_container_width=True):
             toggle_todas_minimizar()
     else:
-        if st.button("🔍 Expandir Todas", use_container_width=True):
+        if st.button(" Expandir Todas", use_container_width=True):
             toggle_todas_minimizar()
 
 # =========================
@@ -93,7 +93,7 @@ with st.form("nova_tarefa"):
     nome = st.text_input("Nome da pendência")
     descricao = st.text_area("Descrição")
 
-    if st.form_submit_button("➕ Adicionar"):
+    if st.form_submit_button(" Adicionar"):
         if nome.strip():
             tarefa_id = gerar_id_unico(nome.strip(), descricao.strip())
             
@@ -116,7 +116,7 @@ with st.form("nova_tarefa"):
 # IMPORTAR EXCEL
 # =========================
 st.divider()
-st.subheader("📤 Importar Excel")
+st.subheader(" Importar Excel")
 
 arquivo = st.file_uploader("Envie um arquivo Excel", type=["xlsx"])
 
@@ -128,7 +128,7 @@ if arquivo:
     df_import.columns = df_import.columns.str.strip().str.lower()
     st.dataframe(df_import)
 
-    if st.button("📋 Importar pendências"):
+    if st.button(" Importar pendências"):
         inseridos_pendente = inseridos_andamento = inseridos_concluido = 0
         ignorados_excluidos = ignorados_duplicados = atualizados = 0
 
@@ -186,12 +186,12 @@ if arquivo:
             conn.commit()
         
         st.success(f"""
-        ✅ Importação concluída!
-        - 📌 Pendentes: {inseridos_pendente}
-        - ⚙️ Em andamento: {inseridos_andamento}
-        - ✅ Concluídos: {inseridos_concluido}
-        - ⏭️ Duplicados ignorados: {ignorados_duplicados}
-        - 🗑️ Excluídos ignorados: {ignorados_excluidos}
+         Importação concluída!
+        -  Pendentes: {inseridos_pendente}
+        -  Em andamento: {inseridos_andamento}
+        -  Concluídos: {inseridos_concluido}
+        - ⏭ Duplicados ignorados: {ignorados_duplicados}
+        -  Excluídos ignorados: {ignorados_excluidos}
         """)
         st.rerun()
 
@@ -203,19 +203,19 @@ with engine.connect() as conn:
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric("📌 Pendentes", len(df[df['status'] == 'Pendente']))
+    st.metric(" Pendentes", len(df[df['status'] == 'Pendente']))
 with col2:
-    st.metric("⚙️ Em andamento", len(df[df['status'] == 'Em andamento']))
+    st.metric(" Em andamento", len(df[df['status'] == 'Em andamento']))
 with col3:
-    st.metric("✅ Concluídos", len(df[df['status'] == 'Concluído']))
+    st.metric(" Concluídos", len(df[df['status'] == 'Concluído']))
 with col4:
-    st.metric("📊 Total", len(df))
+    st.metric(" Total", len(df))
 
 # =========================
 # KANBAN
 # =========================
 st.divider()
-st.subheader("🎯 Quadro Kanban")
+st.subheader(" Status Atividades")
 
 col1, col2, col3 = st.columns(3)
 
@@ -238,13 +238,13 @@ def render_coluna(status, coluna, cor):
             if esta_minimizada:
                 col_a, col_b, col_c = st.columns([4, 1, 1])
                 with col_a:
-                    if st.button(f"📋 {t['nome'][:40]}", key=f"min_{tarefa_id}"):
+                    if st.button(f"anotar {t['nome'][:40]}", key=f"min_{tarefa_id}"):
                         toggle_minimizar(tarefa_id)
                 with col_b:
-                    if st.button("✏️", key=f"edit_{tarefa_id}"):
+                    if st.button("Editar", key=f"edit_{tarefa_id}"):
                         st.session_state.task_id = tarefa_id
                 with col_c:
-                    if st.button("🗑️", key=f"del_{tarefa_id}"):
+                    if st.button("Excluir", key=f"del_{tarefa_id}"):
                         with engine.connect() as conn:
                             conn.execute(text("INSERT INTO historico (tarefa_id, acao) VALUES (:id, :acao)"),
                                        {"id": tarefa_id, "acao": f"Excluída - Status: {t['status']}"})
@@ -254,18 +254,18 @@ def render_coluna(status, coluna, cor):
             else:
                 st.markdown(f"""
                 <div class="card">
-                    <div class="titulo">📋 {t['nome']}</div>
+                    <div class="titulo"> {t['nome']}</div>
                     <div class="desc">{t['descricao'][:100] if t['descricao'] else 'Sem descrição'}...</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 b1, b2, b3, b4 = st.columns(4)
                 with b1:
-                    if st.button("✏️ Editar", key=f"edit_{status}_{tarefa_id}"):
+                    if st.button("✏️", key=f"edit_{status}_{tarefa_id}"):
                         st.session_state.task_id = tarefa_id
                 with b2:
                     if status != "Concluído":
-                        if st.button("✅ Concluir", key=f"comp_{tarefa_id}"):
+                        if st.button("✅", key=f"comp_{tarefa_id}"):
                             with engine.connect() as conn:
                                 conn.execute(text("UPDATE tarefas SET status='Concluído' WHERE id=:id"), {"id": tarefa_id})
                                 conn.execute(text("INSERT INTO historico (tarefa_id, acao) VALUES (:id, :acao)"),
@@ -273,10 +273,10 @@ def render_coluna(status, coluna, cor):
                                 conn.commit()
                             st.rerun()
                 with b3:
-                    if st.button("📌 Minimizar", key=f"min_{status}_{tarefa_id}"):
+                    if st.button("📌", key=f"min_{status}_{tarefa_id}"):
                         toggle_minimizar(tarefa_id)
                 with b4:
-                    if st.button("🗑️ Excluir", key=f"del_{status}_{tarefa_id}"):
+                    if st.button("🗑️", key=f"del_{status}_{tarefa_id}"):
                         with engine.connect() as conn:
                             conn.execute(text("INSERT INTO historico (tarefa_id, acao) VALUES (:id, :acao)"),
                                        {"id": tarefa_id, "acao": f"Excluída - Status: {t['status']}"})
@@ -302,14 +302,14 @@ if st.session_state.task_id:
     
     if tarefa:
         st.divider()
-        st.subheader(f"✏️ Editando: {tarefa[1]}")
+        st.subheader(f" Editando: {tarefa[1]}")
         
         novo_nome = st.text_input("Nome", tarefa[1])
         nova_desc = st.text_area("Descrição", tarefa[3] if tarefa[3] else "")
         
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("💾 Salvar"):
+            if st.button(" Salvar"):
                 with engine.connect() as conn:
                     conn.execute(text("UPDATE tarefas SET nome=:nome, descricao=:desc WHERE id=:id"),
                                {"nome": novo_nome, "desc": nova_desc, "id": tarefa_id})
@@ -319,7 +319,7 @@ if st.session_state.task_id:
                 st.session_state.task_id = None
                 st.rerun()
         with c2:
-            if st.button("❌ Fechar"):
+            if st.button(" Fechar"):
                 st.session_state.task_id = None
                 st.rerun()
         
@@ -343,30 +343,30 @@ if st.session_state.task_id:
 # EXPORTAR DADOS
 # =========================
 st.divider()
-st.subheader("📥 Exportar Dados")
+st.subheader(" Exportar Dados")
 
 c1, c2 = st.columns(2)
 
 with c1:
-    if st.button("📊 Exportar Tarefas"):
+    if st.button(" Exportar Tarefas"):
         with engine.connect() as conn:
             df_export = pd.read_sql("SELECT * FROM tarefas ORDER BY status, data_criacao", conn)
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df_export.to_excel(writer, sheet_name="Tarefas", index=False)
         output.seek(0)
-        st.download_button("⬇️ Baixar", data=output, 
+        st.download_button("⬇ Baixar", data=output, 
                           file_name=f"tarefas_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 with c2:
-    if st.button("📜 Exportar Histórico"):
+    if st.button(" Exportar Histórico"):
         with engine.connect() as conn:
             df_hist = pd.read_sql("SELECT * FROM historico ORDER BY data DESC", conn)
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df_hist.to_excel(writer, sheet_name="Historico", index=False)
         output.seek(0)
-        st.download_button("⬇️ Baixar", data=output,
+        st.download_button(" Baixar", data=output,
                           file_name=f"historico_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
