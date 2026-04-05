@@ -1,5 +1,1 @@
-
-## 📁 **runtime.txt (obrigatório para Python 3.12):**
-
-```txt
-python-3.12
+python-3.9 
