@@ -1,5 +1,6 @@
 {
     "python.analysis.extraPaths": [
         "./venv/data"
-    ]
+    ],
+    "C_Cpp.errorSquiggles": "enabled"
 }
