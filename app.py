@@ -5,6 +5,27 @@ from datetime import datetime
 import io
 import hashlib
 
+import streamlit as st
+
+# ... resto do seu código ...
+
+# Criando os botões com as classes corretas para o CSS acima
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    # A string interna "e" é ignorada pelo CSS, mas o Streamlit precisa dela.
+    # A chave "edit-btn" diz ao CSS qual ícone profissional usar.
+    st.button("e", key="edit-btn", help="Editar Tarefa")
+
+with col2:
+    st.button("c", key="check-btn", help="Concluir Tarefa")
+
+with col3:
+    st.button("p", key="pin-btn", help="Fixar Tarefa")
+
+with col4:
+    st.button("d", key="delete-btn", help="Excluir Tarefa")
+
 
 st.set_page_config(layout="wide")
 
@@ -46,6 +67,17 @@ def toggle_todas_minimizar():
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+
+    /* Definição da fonte nativa do Windows para ícones.
+       Isso garante que os ícones do Windows 10/11 carreguem corretamente.
+    */
+    @font-face {
+        font-family: 'Segoe MDL2 Assets';
+        src: local('Segoe MDL2 Assets'),
+             url('https://cdn.jsdelivr.net/gh/microsoft/fonts@master/segoe-mdl2-assets.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+    }
 
     :root {
         --bg-dark: #020205;
@@ -114,16 +146,36 @@ st.markdown("""
         box-shadow: 0 0 30px rgba(188, 111, 241, 0.2);
     }
 
-    /* Botões Ghost - Agora com mais presença */
+    /* --- Botões de Ação com Ícones Profissionais do Windows --- */
     .stButton button {
         background: rgba(255, 255, 255, 0.03) !important;
-        border: 1px solid rgba(0, 242, 255, 0.3) !important; /* Aumentada a visibilidade inicial */
-        color: var(--text-main) !important;
-        opacity: 0.8; /* Mais visível por padrão */
+        border: 1px solid rgba(0, 242, 255, 0.3) !important;
+        
+        /* Uso da fonte nativa do Windows */
+        font-family: 'Segoe MDL2 Assets', sans-serif !important; 
+        font-size: 18px !important; /* Tamanho ajustado para o ícone */
+        
+        /* Visibilidade inicial melhorada conforme solicitado */
+        color: rgba(224, 250, 255, 0.55) !important; 
+        opacity: 0.9 !important; /* Garante que o botão em si seja visível */
+
         backdrop-filter: blur(5px);
-        font-family: 'Inter', sans-serif !important;
-        padding: 8px 20px !important;
+        padding: 10px 22px !important; /* Padding ajustado */
+        border-radius: 12px !important;
         transition: all 0.3s ease !important;
+        
+        /* AJUSTE DE ESPAÇAMENTO: Adiciona margem entre os botões */
+        margin: 0 8px !important; 
+    }
+
+    /* Ajuste para o primeiro botão para não ter margem extra à esquerda */
+    .stButton:first-child button {
+        margin-left: 0 !important;
+    }
+
+    /* Ajuste para o último botão para não ter margem extra à direita */
+    .stButton:last-child button {
+        margin-right: 0 !important;
     }
 
     .stButton button:hover {
@@ -131,8 +183,28 @@ st.markdown("""
         background: linear-gradient(135deg, rgba(0, 242, 255, 0.2), rgba(188, 111, 241, 0.2)) !important;
         border-color: var(--neon-purple) !important;
         box-shadow: 0 0 20px rgba(188, 111, 241, 0.5) !important;
-        color: white !important;
+        
+        /* Cor de hover mais forte */
+        color: white !important; 
+        text-shadow: 0 0 8px white;
     }
+
+    /* --- Substituição de Emojis por Ícones Segoe MDL2 --- */
+    /* Lápis (Edit) */
+    .stButton.edit-btn button span::before { content: '\E70F'; }
+    
+    /* Checkmark (Confirm) */
+    .stButton.check-btn button span::before { content: '\E73E'; }
+    
+    /* Pin (Fix) */
+    .stButton.pin-btn button span::before { content: '\E840'; }
+    
+    /* Lixo (Delete) */
+    .stButton.delete-btn button span::before { content: '\E74D'; }
+
+    /* Esconder o emoji original */
+    .stButton button span { font-size: 0 !important; }
+    .stButton button span::before { font-size: 18px !important; display: inline-block; }
 
     /* Inputs estilo "Cyberpunk Terminal" */
     .stTextInput input {
