@@ -45,201 +45,136 @@ def toggle_todas_minimizar():
 
 st.markdown("""
 <style>
-    /* 1. Variáveis de Cor - Inspiradas na imagem + Lilás Neon */
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+
     :root {
-        --bg-dark: #05050a;
-        --bg-card: rgba(10, 10, 20, 0.7);
-        --neon-cyan: #00f2ff;       /* Cor principal da imagem */
-        --neon-blue: #0066ff;       /* Azul profundo da imagem */
-        --neon-purple: #bc6ff1;     /* O lilás solicitado */
+        --bg-dark: #020205;
+        --bg-card: rgba(13, 17, 23, 0.8);
+        --neon-cyan: #00f2ff;
+        --neon-blue: #0066ff;
+        --neon-purple: #bc6ff1;
         --text-main: #e0faff;
         --text-dim: #88a0b0;
-        --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    /* 2. Fundo Imersivo com profundidade */
+    /* Fundo com efeito de malha tecnológica */
     .stApp {
-        background: radial-gradient(circle at 50% 50%, #101e33 0%, #05050a 100%);
+        background-color: var(--bg-dark);
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(188, 111, 241, 0.15) 0px, transparent 50%),
+            radial-gradient(at 100% 100%, rgba(0, 242, 255, 0.1) 0px, transparent 50%),
+            linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        background-size: 100% 100%, 100% 100%, 50px 50px, 50px 50px;
         color: var(--text-main);
     }
 
-    hr {
-        display: none !important;
-    }
-
-    /* Caso as linhas venham de bordas de containers do Streamlit */
-    .stHorizontalBlock, div[data-testid="stVerticalBlock"] > div:has(hr) {
-        border: none !important;
-    }
-
-    /* --- 3. Títulos com Brilho (Glow) Unificados --- */
-    /* Aplica o efeito em H1, H2, H3 e subheaders do Streamlit */
-    h1, h2, h3, .stSubheader p {
-        background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+    /* Títulos Magníficos */
+    h1, h2, h3 {
+        font-family: 'Orbitron', sans-serif !important;
+        letter-spacing: 2px !important;
+        background: linear-gradient(135deg, var(--neon-cyan) 30%, var(--neon-purple) 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-weight: 800 !important;
-        filter: drop-shadow(0 0 8px rgba(0, 242, 255, 0.2));
-        transition: var(--transition);
-        margin-bottom: 15px !important;
-    }
-
-    /* Efeito de "pulsação" leve ao passar o mouse nos títulos */
-    h1:hover, h2:hover, h3:hover {
-        filter: drop-shadow(0 0 15px rgba(188, 111, 241, 0.5));
-        transform: translateX(5px);
-    }
-
-    /* --- 10. Rodapé Profissional Estilizado --- */
-    .custom-footer {
-        width: 100%;
-        background: rgba(10, 10, 20, 0.6);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-top: 1px solid rgba(0, 242, 255, 0.1);
-        padding: 20px 0;
-        margin-top: 50px;
-        text-align: center;
-        border-radius: 20px 20px 0 0;
-    }
-
-    .footer-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .footer-text {
-        color: var(--text-dim);
-        font-size: 14px;
-        letter-spacing: 1px;
-        font-family: 'Inter', sans-serif;
-    }
-
-    /* Badge Lilás no rodapé */
-    .footer-badge {
-        background: linear-gradient(135deg, var(--neon-purple), #8e44ad);
-        color: white;
-        padding: 4px 12px;
-        border-radius: 50px;
-        font-size: 11px;
-        font-weight: bold;
+        filter: drop-shadow(0 0 12px rgba(0, 242, 255, 0.4));
         text-transform: uppercase;
-        box-shadow: 0 0 10px rgba(188, 111, 241, 0.3);
     }
 
-    .footer-links {
-        display: flex;
-        gap: 20px;
-        margin-top: 10px;
-    }
-
-    .footer-links a {
-        color: var(--neon-cyan);
-        text-decoration: none;
-        font-size: 12px;
-        opacity: 0.6;
-        transition: var(--transition);
-    }
-
-    .footer-links a:hover {
-        opacity: 1;
-        color: var(--neon-purple);
-        text-shadow: 0 0 8px rgba(188, 111, 241, 0.6);
-    }
-    /* 4. Cards Estilo "High-Tech" (Inspirado no SaaS da imagem) */
+    /* Cards com Borda Animada Sutil */
     .card {
         background: var(--bg-card);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(0, 242, 255, 0.1); /* Borda ciano sutil */
-        border-radius: 14px;
-        padding: 16px;
-        transition: var(--transition);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        padding: 24px;
         position: relative;
+        overflow: hidden;
+        transition: var(--transition);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    }
+
+    .card::before {
+        content: "";
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(188, 111, 241, 0.1), transparent);
+        transition: 0.8s;
+    }
+
+    .card:hover::before {
+        left: 100%;
     }
 
     .card:hover {
-        transform: translateY(-3px);
-        border-color: var(--neon-purple); /* Muda para lilás no hover */
-        box-shadow: 0 0 20px rgba(188, 111, 241, 0.2);
+        transform: scale(1.02) translateY(-5px);
+        border-color: var(--neon-purple);
+        box-shadow: 0 0 30px rgba(188, 111, 241, 0.2);
     }
 
-/* 5. Botões Compactos com Efeito de Revelação (Ghost Style) */
+    /* Botões Ghost - Agora com mais presença */
     .stButton button {
-        height: auto !important;
-        padding: 6px 16px !important;
-        font-size: 13px !important;
-        border-radius: 8px !important;
-        font-weight: 600 !important;
-        
-        /* Estado inicial: Quase invisível */
-        background: transparent !important;
-        border: 1px solid rgba(0, 242, 255, 0.1) !important; /* Borda bem discreta */
-        color: rgba(0, 242, 255, 0.2) !important;           /* Texto/Emoji quase sumindo */
-        opacity: 0.4;                                       /* Opacidade baixa */
-        
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(0, 242, 255, 0.3) !important; /* Aumentada a visibilidade inicial */
+        color: var(--text-main) !important;
+        opacity: 0.8; /* Mais visível por padrão */
+        backdrop-filter: blur(5px);
+        font-family: 'Inter', sans-serif !important;
+        padding: 8px 20px !important;
+        transition: all 0.3s ease !important;
     }
 
-    /* Estado ao passar o mouse: Revelação Forte */
     .stButton button:hover {
-        opacity: 1 !important;                             /* Fica 100% visível */
-        background: rgba(188, 111, 241, 0.1) !important;   /* Fundo lilás bem sutil */
-        color: var(--neon-purple) !important;              /* Texto brilha em lilás */
-        border-color: var(--neon-purple) !important;       /* Borda acende */
-        
-        /* Efeito de brilho (Glow) */
-        box-shadow: 0 0 15px rgba(188, 111, 241, 0.4), 
-                    inset 0 0 10px rgba(188, 111, 241, 0.2) !important;
-        transform: translateY(-2px);
-    }
-
-    /* Ajuste específico para os botões com emojis da imagem (Edição, Check, Pin, Lixo) */
-    .stButton button:active {
-        transform: scale(0.95);
-    }
-
-    /* 6. Inputs Neon */
-    .stTextInput input {
-        background: rgba(0, 0, 0, 0.4) !important;
-        border: 1px solid rgba(0, 242, 255, 0.2) !important;
-        border-radius: 8px !important;
-        color: var(--neon-cyan) !important;
-    }
-
-    .stTextInput input:focus {
+        opacity: 1 !important;
+        background: linear-gradient(135deg, rgba(0, 242, 255, 0.2), rgba(188, 111, 241, 0.2)) !important;
         border-color: var(--neon-purple) !important;
-        box-shadow: 0 0 10px rgba(188, 111, 241, 0.3) !important;
+        box-shadow: 0 0 20px rgba(188, 111, 241, 0.5) !important;
+        color: white !important;
     }
 
-    /* 7. Métricas e Status */
-    .stMetric {
-        background: rgba(0, 242, 255, 0.02);
-        border: 1px solid rgba(0, 242, 255, 0.1);
-        border-radius: 12px;
-        padding: 10px;
+    /* Inputs estilo "Cyberpunk Terminal" */
+    .stTextInput input {
+        background: rgba(0, 0, 0, 0.6) !important;
+        border-left: 4px solid var(--neon-cyan) !important;
+        border-right: 1px solid rgba(0, 242, 255, 0.2) !important;
+        border-top: 1px solid rgba(0, 242, 255, 0.2) !important;
+        border-bottom: 1px solid rgba(0, 242, 255, 0.2) !important;
+        border-radius: 4px !important;
+        font-family: 'Consolas', monospace;
     }
 
+    /* Status Badge com Brilho Pulsante */
     .status-badge {
-        padding: 4px 10px;
-        font-size: 10px;
-        border-radius: 6px;
-        font-weight: bold;
-        background: rgba(0, 242, 255, 0.1);
-        color: var(--neon-cyan);
+        position: relative;
+        padding: 5px 15px;
+        background: rgba(0, 242, 255, 0.05);
         border: 1px solid var(--neon-cyan);
+        color: var(--neon-cyan);
+        border-radius: 50px;
+        font-size: 11px;
+        text-transform: uppercase;
+        animation: pulse 2s infinite;
     }
 
-    /* Scrollbar Ciano */
-    ::-webkit-scrollbar-thumb {
-        background: var(--neon-cyan);
-        border-radius: 10px;
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(0, 242, 255, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0); }
     }
+
+    /* Rodapé Sci-Fi */
+    .custom-footer {
+        background: linear-gradient(transparent, rgba(188, 111, 241, 0.05));
+        border-top: 1px solid rgba(188, 111, 241, 0.2);
+        padding: 40px;
+        text-align: center;
+        margin-top: 100px;
+    }
+
+    /* Esconder elementos padrão do Streamlit para um visual limpo */
+    #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
