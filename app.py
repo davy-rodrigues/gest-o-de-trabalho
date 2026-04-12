@@ -43,59 +43,57 @@ st.markdown("""
     }
 
     :root {
-        --primary: #2563eb;
-        --bg-main: #f8fafc;
+        --primary-blue: #2563eb;
+        --accent-purple: #8b5cf6;  /* Lilás Corporativo */
+        --success-green: #10b981;  /* Verde Soft */
+        --bg-main: #fcfcfd;
         --text-dark: #1e293b;
-        --text-light: #64748b;
         --border: #e2e8f0;
-        --card-bg: #ffffff;
     }
 
     .stApp {
         background-color: var(--bg-main);
         font-family: 'Inter', sans-serif;
-        color: var(--text-dark);
     }
 
     h1, h2, h3 {
         font-weight: 600 !important;
         color: var(--text-dark) !important;
-        letter-spacing: -0.5px !important;
     }
 
-    /* Estilo de Card Corporativo */
+    /* Card com borda lilás no hover */
     .task-card {
-        background: var(--card-bg);
+        background: white;
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: 10px;
         padding: 16px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         margin-bottom: 0px;
-        transition: box-shadow 0.2s;
+        transition: all 0.2s ease;
     }
     .task-card:hover {
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        border-color: var(--primary);
+        border-color: var(--accent-purple);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
     }
 
     /* Botões de Ação Dinâmicos */
     .stButton button {
-        background: transparent !important;
+        background: #f8fafc !important;
         border: 1px solid var(--border) !important;
         font-family: 'Segoe MDL2 Assets', sans-serif !important;
-        color: var(--text-light) !important;
+        color: #64748b !important;
         border-radius: 6px !important;
-        padding: 4px 10px !important;
-        font-size: 16px !important;
+        padding: 5px 12px !important;
         transition: all 0.2s !important;
     }
-    .stButton button:hover {
-        border-color: var(--primary) !important;
-        color: var(--primary) !important;
-        background: #eff6ff !important;
-    }
 
-    /* Mapeamento de Ícones Profissionais */
+    /* Cores específicas no Hover dos botões */
+    div[data-key^="edit-"] button:hover { color: var(--primary-blue) !important; border-color: var(--primary-blue) !important; }
+    div[data-key^="check-"] button:hover { color: var(--success-green) !important; border-color: var(--success-green) !important; }
+    div[data-key^="pin-"] button:hover { color: var(--accent-purple) !important; border-color: var(--accent-purple) !important; }
+    div[data-key^="del-"] button:hover { color: #ef4444 !important; border-color: #ef4444 !important; }
+
+    /* Mapeamento de Ícones */
     div[data-key^="edit-"] button span::before { content: '\\E70F' !important; }
     div[data-key^="check-"] button span::before { content: '\\E73E' !important; }
     div[data-key^="pin-"] button span::before { content: '\\E840' !important; }
@@ -104,12 +102,6 @@ st.markdown("""
     .stButton button span { font-size: 0 !important; }
     .stButton button span::before { font-size: 16px !important; display: inline-block; }
 
-    /* Inputs Limpos */
-    .stTextInput input, .stTextArea textarea {
-        border-radius: 6px !important;
-        border: 1px solid var(--border) !important;
-    }
-    
     #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
