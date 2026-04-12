@@ -49,9 +49,7 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;600&display=swap');
 
-    /* Definição da fonte nativa do Windows para ícones.
-       Isso garante que os ícones do Windows 10/11 carreguem corretamente.
-    */
+    /* Fonte Segoe MDL2 para ícones profissionais do Windows */
     @font-face {
         font-family: 'Segoe MDL2 Assets';
         src: local('Segoe MDL2 Assets'),
@@ -71,7 +69,7 @@ st.markdown("""
         --transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
-    /* Fundo com efeito de malha tecnológica */
+    /* Fundo Tecnológico */
     .stApp {
         background-color: var(--bg-dark);
         background-image: 
@@ -83,10 +81,9 @@ st.markdown("""
         color: var(--text-main);
     }
 
-    /* Títulos Magníficos */
+    /* Títulos Orbitron */
     h1, h2, h3 {
         font-family: 'Orbitron', sans-serif !important;
-        letter-spacing: 2px !important;
         background: linear-gradient(135deg, var(--neon-cyan) 30%, var(--neon-purple) 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -94,139 +91,60 @@ st.markdown("""
         text-transform: uppercase;
     }
 
-    /* Cards com Borda Animada Sutil */
+    /* Cards Estilizados */
     .card {
         background: var(--bg-card);
         backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 20px;
-        padding: 24px;
-        position: relative;
-        overflow: hidden;
+        padding: 20px;
         transition: var(--transition);
         box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+        margin-bottom: 10px;
     }
-
-    .card::before {
-        content: "";
-        position: absolute;
-        top: 0; left: -100%;
-        width: 100%; height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(188, 111, 241, 0.1), transparent);
-        transition: 0.8s;
-    }
-
-    .card:hover::before {
-        left: 100%;
-    }
-
     .card:hover {
-        transform: scale(1.02) translateY(-5px);
+        transform: scale(1.02);
         border-color: var(--neon-purple);
         box-shadow: 0 0 30px rgba(188, 111, 241, 0.2);
     }
 
-    /* --- Botões de Ação com Ícones Profissionais do Windows --- */
+    /* BOTÕES DE AÇÃO COM SELETORES DINÂMICOS */
     .stButton button {
         background: rgba(255, 255, 255, 0.03) !important;
         border: 1px solid rgba(0, 242, 255, 0.3) !important;
-        
-        /* Uso da fonte nativa do Windows */
         font-family: 'Segoe MDL2 Assets', sans-serif !important; 
-        font-size: 18px !important; /* Tamanho ajustado para o ícone */
-        
-        /* Visibilidade inicial melhorada conforme solicitado */
+        font-size: 18px !important;
         color: rgba(224, 250, 255, 0.55) !important; 
-        opacity: 0.9 !important; /* Garante que o botão em si seja visível */
-
-        backdrop-filter: blur(5px);
-        padding: 10px 22px !important; /* Padding ajustado */
+        padding: 10px !important;
         border-radius: 12px !important;
         transition: all 0.3s ease !important;
-        
-        /* AJUSTE DE ESPAÇAMENTO: Adiciona margem entre os botões */
-        margin: 0 8px !important; 
-    }
-
-    /* Ajuste para o primeiro botão para não ter margem extra à esquerda */
-    .stButton:first-child button {
-        margin-left: 0 !important;
-    }
-
-    /* Ajuste para o último botão para não ter margem extra à direita */
-    .stButton:last-child button {
-        margin-right: 0 !important;
     }
 
     .stButton button:hover {
-        opacity: 1 !important;
         background: linear-gradient(135deg, rgba(0, 242, 255, 0.2), rgba(188, 111, 241, 0.2)) !important;
         border-color: var(--neon-purple) !important;
+        color: white !important;
         box-shadow: 0 0 20px rgba(188, 111, 241, 0.5) !important;
-        
-        /* Cor de hover mais forte */
-        color: white !important; 
-        text-shadow: 0 0 8px white;
     }
 
-    /* --- Substituição de Emojis por Ícones Segoe MDL2 --- */
-    /* Lápis (Edit) */
-    .stButton.edit-btn button span::before { content: '\E70F'; }
-    
-    /* Checkmark (Confirm) */
-    .stButton.check-btn button span::before { content: '\E73E'; }
-    
-    /* Pin (Fix) */
-    .stButton.pin-btn button span::before { content: '\E840'; }
-    
-    /* Lixo (Delete) */
-    .stButton.delete-btn button span::before { content: '\E74D'; }
+    /* Mapeamento de Ícones via KEY do Streamlit */
+    div[data-key^="edit-"] button span::before { content: '\\E70F' !important; }
+    div[data-key^="check-"] button span::before { content: '\\E73E' !important; }
+    div[data-key^="pin-"] button span::before { content: '\\E840' !important; }
+    div[data-key^="del-"] button span::before { content: '\\E74D' !important; }
 
-    /* Esconder o emoji original */
+    /* Esconde o label de texto para mostrar apenas o ícone */
     .stButton button span { font-size: 0 !important; }
     .stButton button span::before { font-size: 18px !important; display: inline-block; }
 
-    /* Inputs estilo "Cyberpunk Terminal" */
-    .stTextInput input {
+    /* Inputs estilo Terminal */
+    .stTextInput input, .stTextArea textarea {
         background: rgba(0, 0, 0, 0.6) !important;
         border-left: 4px solid var(--neon-cyan) !important;
-        border-right: 1px solid rgba(0, 242, 255, 0.2) !important;
-        border-top: 1px solid rgba(0, 242, 255, 0.2) !important;
-        border-bottom: 1px solid rgba(0, 242, 255, 0.2) !important;
-        border-radius: 4px !important;
+        color: white !important;
         font-family: 'Consolas', monospace;
     }
 
-    /* Status Badge com Brilho Pulsante */
-    .status-badge {
-        position: relative;
-        padding: 5px 15px;
-        background: rgba(0, 242, 255, 0.05);
-        border: 1px solid var(--neon-cyan);
-        color: var(--neon-cyan);
-        border-radius: 50px;
-        font-size: 11px;
-        text-transform: uppercase;
-        animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-        0% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(0, 242, 255, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0); }
-    }
-
-    /* Rodapé Sci-Fi */
-    .custom-footer {
-        background: linear-gradient(transparent, rgba(188, 111, 241, 0.05));
-        border-top: 1px solid rgba(188, 111, 241, 0.2);
-        padding: 40px;
-        text-align: center;
-        margin-top: 100px;
-    }
-
-    /* Esconder elementos padrão do Streamlit para um visual limpo */
     #MainMenu, footer, header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
