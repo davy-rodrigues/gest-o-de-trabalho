@@ -419,7 +419,6 @@ if st.session_state.task_id:
         st.session_state.task_id = None
         st.rerun()
 
-
 # EXPORTAR DADOS
 
 st.divider()
